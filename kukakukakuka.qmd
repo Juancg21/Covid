@@ -1,0 +1,727 @@
+---
+title: "Análisis Sobre El Covid"
+author: "Alfonso Martinez, Juan Cervantes"
+date: "09/29/24"
+format: 
+  revealjs:   
+    self_contained: true
+    theme: beige
+output-file: index.html   # Esto genera el archivo como index.html
+
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(corrplot)
+library(kableExtra)
+require(pander)
+library(wordcloud)
+library(plotly)
+library(ggiraph)
+library(highcharter)
+library(leaflet)
+library(DT)
+library(echarts4r)
+library(waffle)
+library(extrafont)
+library(scales)
+library(rmarkdown)
+library(kableExtra)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+Dset_cleam <- read_xlsx("Dset cleam.xlsx",sheet = "Datos")
+
+```
+
+#### ID: ¿Cuál es el propósito del campo de identificación y cómo se generan estos IDs?
+
+El campo ID en un data frame suele representar un identificador único para cada fila o registro. Su propósito principal es asegurar que cada observación (persona, estado, objeto, etc.) tenga un valor único, permitiendo que cada fila se distinga de las demás.
+
+------------------------------------------------------------------------
+
+#### Edad: ¿Cuál es la distribución de edades de las personas en el dataset y hay algún rango de edad específico que esté más representado?
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+print(
+  ggplot(Dset_cleam, aes(x = Edad)) +
+  geom_histogram(binwidth = 5, fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribución de Edades", x = "Edad", y = "Frecuencia") +
+  theme_minimal()+
+  theme(plot.title = element_text(size = 14, face = "bold"))
+)
+```
+
+------------------------------------------------------------------------
+
+#### Género: ¿Cuál es la distribución de géneros en el dataset y cómo se clasifican los diferentes géneros?
+
+```{r}
+genero_distribución <- Dset_cleam %>% group_by(Género) %>% 
+  summarise(Frecuencia = n()) %>% 
+  ungroup() # Asegúrate de desagrupar después de usar group_by
+```
+
+```{r}
+print(
+#Crear gráfico de donut
+
+ggplot(genero_distribución, aes(x = "", y = Frecuencia, fill = Género)) + 
+  geom_bar(stat = "identity", width = 1, color = "white") + 
+  coord_polar("y", start = 0) + 
+  geom_text(aes(label = paste0(round(Frecuencia / sum(Frecuencia) * 100), "%")), position = position_stack(vjust = 0.5), color = "white") + labs(title = "Distribución de Géneros", x = NULL, y = NULL) + theme_void() + theme(legend.position = "right")
+)
+
+```
+
+------------------------------------------------------------------------
+
+#### País: ¿Cuántos países diferentes están representados en el dataset y cuál es el país con más casos registrados?
+
+```{r}
+# Crear el dataframe con las banderas y datos
+pais_distributionM <- data.frame(
+  País = c("Francia", "Brasil", "Argentina", "España", "Alemania", 
+           "México", "Canadá", "Italia", "Reino Unido", "USA"),
+  Casos = c(17, 15, 13, 13, 12, 12, 11, 11, 11, 1),
+  Latitud = c(46.6034, -14.2350, -38.4161, 40.4637, 51.1657, 
+              23.6345, 56.1304, 41.8719, 55.3781, 37.0902),
+  Longitud = c(1.8883, -51.9253, -63.6167, -3.7038, 10.4515, 
+               -102.5528, -106.3468, 12.5674, -3.4360, -95.7129),
+  Banderas = c(
+    "https://flagcdn.com/w320/fr.png", # Francia
+    "https://flagcdn.com/w320/br.png", # Brasil
+    "https://flagcdn.com/w320/ar.png", # Argentina
+    "https://flagcdn.com/w320/es.png", # España
+    "https://flagcdn.com/w320/de.png", # Alemania
+    "https://flagcdn.com/w320/mx.png", # México
+    "https://flagcdn.com/w320/ca.png", # Canadá
+    "https://flagcdn.com/w320/it.png", # Italia
+    "https://flagcdn.com/w320/gb.png", # Reino Unido
+    "https://flagcdn.com/w320/us.png"  # USA
+  )
+)
+```
+
+```{r}
+# Crear el mapa interactivo
+leaflet(data = pais_distributionM) %>%
+  addTiles() %>%
+  addMarkers(
+    lng = ~Longitud, lat = ~Latitud, 
+    icon = ~icons(iconUrl = Banderas, iconWidth = 30, iconHeight = 20),  # Tamaño de la bandera
+    popup = ~paste(País, ": ", Casos, " casos")  # Texto emergente
+  ) %>%
+  # Añadir un marcador especial para Francia
+  addMarkers(
+    lng = ~Longitud[País == "Francia"], lat = ~Latitud[País == "Francia"],
+    icon = ~icons(iconUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Flag_of_France.svg/1024px-Flag_of_France.svg.png", 
+                  iconWidth = 30, iconHeight = 20),  # Ícono grande de la bandera
+    popup = ~paste0("<b style='font-size: 20px; color: red;'>", País, "</b>", "<br/>", 
+                    Casos, " casos"),  # Popup más destacado
+    label = "¡Francia!",  # Etiqueta para el marcador
+    labelOptions = labelOptions(style = list("font-weight" = "bold", "font-size" = "16px", "color" = "red")) # Etiqueta personalizada
+  ) %>%
+  # Añadir un círculo pulsante para Francia
+  addCircles(lng = ~Longitud[País == "Francia"], lat = ~Latitud[País == "Francia"], 
+             radius = 50000, color = "red", fillOpacity = 0.1, stroke = FALSE) %>%
+  # Animación en el círculo pulsante
+  addCircleMarkers(
+    lng = ~Longitud[País == "Francia"], lat = ~Latitud[País == "Francia"], 
+    radius = 30, color = "red", fill = TRUE, fillOpacity = 0.5, 
+    stroke = FALSE, popup = "!Francia tiene la mayor cantidad de casos! 17",
+    options = markerOptions(riseOnHover = TRUE, riseOffset = 100)
+  )
+
+
+```
+
+------------------------------------------------------------------------
+
+#### Estado:¿Cuál es la proporción de estados (positivo, recuperado, etc.) en el dataset y cómo se determina el estado de una persona?
+
+```{r}
+# Calcular la proporción de cada estado
+estado_distribution <- Dset_cleam %>%
+  group_by(Estado) %>%
+  summarise(Casos = n()) %>%
+  mutate(Proporción = Casos / sum(Casos) * 100) %>%
+  arrange(desc(Proporción))
+
+
+```
+
+```{r}
+# Crear un gráfico de tipo donut
+fig <- plot_ly(data = estado_distribution, 
+               labels = ~Estado, 
+               values = ~Proporción, 
+               type = 'pie', 
+               textinfo = 'label+percent',
+               insidetextfont = list(color = '#FFFFFF'), 
+               hole = 0.4) %>%
+  layout(title = 'Proporción de Estado de Salud',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+# Mostrar el gráfico de donut
+fig
+
+```
+
+------------------------------------------------------------------------
+
+#### Síntomas: ¿Cuáles son los síntomas más comunes reportados en el dataset y hay algún patrón entre ellos?
+
+```{r}
+# 1. Separar los síntomas en filas y mantener el estado
+sintomas_separados <- Dset_cleam %>%
+  select(ID, Estado, Síntomas) %>% 
+  separate_rows(Síntomas, sep = ", ") 
+
+
+# 2. Contar la frecuencia de cada síntoma
+sintomas_frecuencia <- sintomas_separados %>%
+  group_by(Síntomas) %>%
+  summarise(Frecuencia = n()) %>%
+  arrange(desc(Frecuencia))
+
+
+print(
+ggplot(sintomas_frecuencia, aes(x = reorder(Síntomas, Frecuencia), y = Frecuencia)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "darkblue") +
+  labs(title = "Síntomas Más Comunes Reportados",
+       x = "",
+       y = "Frecuencia") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1)) +  # Ajustar las etiquetas del eje y
+  geom_text(aes(label = Frecuencia), hjust = -0.2, color = "darkblue") +  # Ajustar posición de etiquetas
+  coord_flip()  # Cambiar el gráfico a horizontal
+)
+```
+
+------------------------------------------------------------------------
+
+#### Fecha de diagnóstico:¿Cómo se distribuyen las fechas de diagnóstico a lo largo del tiempo y hay algún patrón estacional o temporal en los diagnósticos?
+
+```{r}
+# Convertir la columna "Fecha de diagnóstico" a formato de fecha
+Dset_cleam$`Fecha de diagnóstico` <- as.Date(Dset_cleam$`Fecha de diagnóstico`, format = "%d/%m/%Y")  # Cambia el formato según tus datos
+```
+
+```{r}
+# Contar la frecuencia de diagnósticos por fecha
+frecuencia_Fecha_diagnosticos <- Dset_cleam %>%
+  group_by(`Fecha de diagnóstico`) %>%
+  summarise(Casos = n())
+```
+
+```{r}
+# Crear un gráfico de líneas para visualizar la distribución
+print(
+ggplot(frecuencia_Fecha_diagnosticos, aes(x = `Fecha de diagnóstico`, y = Casos)) +
+  geom_line(color = "blue") +
+  labs(title = "Distribución de Diagnósticos a lo Largo del Tiempo",
+       x = "Fecha de Diagnóstico",
+       y = "Número de Diagnósticos") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+#### Temperatura:¿Cuál es la distribución de las temperaturas registradas y hay alguna temperatura que sea anormalmente alta o baja?
+
+```{r}
+# graficos de Dispersion
+print(
+ggplot(Dset_cleam, aes(x = seq_along(Temperatura), y = Temperatura)) +
+  geom_point(color = "blue") +
+  labs(title = "Gráfico de Puntos de Temperaturas Registradas",
+       x = "Personas",
+       y = "Temperatura (°C)") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Histograma para visualizar la distribución de las temperaturas
+print(
+ggplot(Dset_cleam, aes(x = Temperatura)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
+  labs(title = "Distribución de las temperaturas", x = "Temperatura (°C)", y = "Frecuencia") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+#### Presión arterial: ¿Cómo varía la presión arterial registrada y hay alguna tendencia o patrón entre los valores?
+
+```{r}
+# Separar presión arterial en dos columnas: Sistólica y Diastólica
+Dset_cleam <- Dset_cleam %>%
+  separate( `Presión arterial`, into = c("Sistólica", "Diastólica"), sep = "/", convert = TRUE)
+
+```
+
+```{r}
+# Gráfico de dispersión para analizar la relación entre edad y presión arterial sistólica
+print(
+ggplot(Dset_cleam, aes(x = Edad, y = Sistólica)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Relación entre edad y presión arterial sistólica", x = "Edad", y = "Presión sistólica (mmHg)") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+#### Nivel de oxígeno: ¿Cuál es el rango típico de niveles de oxígeno y cómo se relaciona esto con el estado de salud de los pacientes?
+
+```{r}
+# Crear un boxplot para ver la distribución del nivel de oxígeno por estado de salud
+print(
+ggplot(Dset_cleam, aes(x = Estado, y = `Nivel de oxígeno`, fill = Estado)) +
+  geom_boxplot() +
+  labs(title = "Distribución del Nivel de Oxígeno por Estado de Salud",
+       x = "Estado de Salud",
+       y = "Nivel de Oxígeno") +
+  theme_minimal() +
+  theme(legend.position = "none")
+)
+```
+
+------------------------------------------------------------------------
+
+#### Tratamiento: ¿Qué tipos de tratamientos son más comunes y cómo varían según el estado de los pacientes?
+
+```{r}
+# Contar la frecuencia de cada tratamiento
+tratamiento_frecuencia <- Dset_cleam %>%
+  group_by(Tratamiento) %>%
+  summarise(Frecuencia = n()) %>%
+  arrange(desc(Frecuencia))
+
+
+
+
+# Contar la frecuencia de tratamientos según el estado de los pacientes
+tratamiento_estado <- Dset_cleam %>%
+  group_by(Estado, Tratamiento) %>%
+  summarise(Frecuencia = n()) %>%
+  arrange(desc(Frecuencia))
+
+```
+
+```{r}
+# Crear un gráfico de barras apiladas para los tratamientos según el estado
+
+print(
+ggplot(tratamiento_estado, aes(x = Estado, y = Frecuencia, fill = Tratamiento)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Proporción de Tratamientos según el Estado de los Pacientes",
+       x = "Estado",
+       y = "Proporción",
+       fill = "Tratamiento") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent)  # Mostrar el eje y en porcentaje
+)
+```
+
+------------------------------------------------------------------------
+
+#### Vacunado: ¿Qué proporción de la población en el dataset está vacunada y cómo se relaciona esto con el estado de salud y el curso de la enfermedad?
+
+```{r}
+# Calcular la proporción de personas vacunadas
+proporcion_vacunado <- Dset_cleam %>%
+  group_by(Vacunado) %>%
+  summarise(Frecuencia = n()) %>%
+  mutate(Proporción = Frecuencia / sum(Frecuencia))
+```
+
+```{r}
+# Gráfico de tarta con mejoras visuales
+print(
+ggplot(proporcion_vacunado, aes(x = "", y = Proporción, fill = Vacunado)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +  # Borde blanco para cada segmento
+  coord_polar("y", start = 0) +  # Comenzar en la parte superior
+  labs(title = "Proporción de la Población Vacunada",
+       subtitle = "Distribución de vacunados y no vacunados en la muestra",
+       ,
+       x = NULL,  # Eliminar etiqueta del eje X
+       y = NULL) +  # Eliminar etiqueta del eje Y
+  theme_void() +  # Eliminar elementos de fondo
+  theme(
+    plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 9, hjust = 0.5),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"  # Posicionar la leyenda a la derecha
+  ) +
+  geom_text(aes(label = percent(Proporción)),  # Agregar etiquetas de porcentaje
+            position = position_stack(vjust = 0.5),  # Centrar etiquetas en los segmentos
+            color = "white", size = 5, fontface = "bold")  # Color y tamaño de las etiquetas
+
+)
+```
+
+```{r}
+# Relación entre el estado de salud y la vacunación
+vacunacion_estado <- Dset_cleam %>%
+  group_by(Vacunado, Estado) %>%
+  summarise(Frecuencia = n(), .groups = "drop") %>%
+  arrange(desc(Frecuencia))
+print(vacunacion_estado)
+
+```
+
+```{r}
+# Gráfico de barras agrupadas para mostrar el estado de salud según vacunación
+print(
+  ggplot(vacunacion_estado, aes(x = Estado, y = Frecuencia, fill = Vacunado)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = "Relación entre estado de salud y vacunación", 
+         x = "Estado de salud", 
+         y = "Frecuencia") +
+    theme_minimal() +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) # Formato de porcentaje
+)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Relación entre vacunación y hospitalización
+vacunacion_hospitalizado <- Dset_cleam %>%
+  group_by(Vacunado, Hospitalizado) %>%
+  summarise(Frecuencia = n()) %>%
+  arrange(desc(Frecuencia))
+```
+
+```{r}
+# Gráfico de barras agrupadas para mostrar la relación entre vacunación y hospitalización
+print(
+ggplot(vacunacion_hospitalizado, aes(x = Hospitalizado, y = Frecuencia, fill = Vacunado)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Relación entre Vacunación y Hospitalización",
+       x = "Hospitalizado",
+       y = "Frecuencia") +
+  scale_fill_manual(values = c("#66c2a5", "#fc8d62"),  # Colores suaves
+                    labels = c("Vacunado", "No Vacunado")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    legend.title = element_blank(),  # Sin título en la leyenda
+    legend.position = "top"
+  )
+)
+
+```
+
+------------------------------------------------------------------------
+
+#### Fecha de vacunación:¿Cómo se distribuyen las fechas de vacunación y hay alguna relación entre la fecha de vacunación y el estado posterior del paciente?
+
+```{r}
+# Filtrar datos sin fecha de vacunación
+fecha_vacunacion <- Dset_cleam %>%
+  filter(!is.na(`Fecha de vacunación`))
+```
+
+```{r}
+# Gráfico de densidad para la distribución de fechas de vacunación
+print(
+ggplot(fecha_vacunacion, aes(x = `Fecha de vacunación`)) +
+  geom_density(fill = "skyblue", alpha = 0.5) +
+  labs(title = "Distribución de Fechas de Vacunación",
+       x = "Fecha de Vacunación",
+       y = "Densidad") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Agrupar por fecha de vacunación y resultado de la prueba
+vacunacion_resultado <- Dset_cleam %>%
+  group_by(`Fecha de vacunación`, `Resultado de la prueba`) %>%
+  summarise(Frecuencia = n(), .groups = "drop") %>%
+  filter(!is.na(`Fecha de vacunación`) & !is.na(`Resultado de la prueba`))  # Filtrar NA
+```
+
+```{r}
+# Gráfico de líneas para la relación entre fecha de vacunación y resultado de la prueba
+print(
+ggplot(vacunacion_resultado, aes(x = `Fecha de vacunación`, y = Frecuencia, color = `Resultado de la prueba`)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Relación entre Fecha de Vacunación y Resultado de la Prueba",
+       x = "Fecha de Vacunación",
+       y = "Frecuencia") +
+  theme_minimal()
+)
+
+```
+
+------------------------------------------------------------------------
+
+#### Vacuna:¿Qué vacunas son más comunes en el dataset y hay alguna diferencia en la efectividad entre ellas?
+
+```{r}
+# 1. Contar las vacunas más comunes
+vacunas_comunes <- Dset_cleam %>%
+  group_by(Vacuna) %>%
+  summarise(Conteo = n()) %>%
+  arrange(desc(Conteo))
+```
+
+```{r}
+# 2. Relación entre Vacuna y Estado (efectividad aproximada)
+vacuna_efectividad <- Dset_cleam %>%
+  filter(!is.na(Vacuna)) %>%
+  group_by(Vacuna, Estado) %>%
+  summarise(Conteo = n()) %>%
+  arrange(Vacuna, Estado)
+
+```
+
+```{r}
+# Visualizar la relación entre Vacuna y Estado
+print(
+ggplot(vacuna_efectividad, aes(x = Vacuna, y = Conteo, fill = Estado)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Efectividad de las Vacunas por Estado de Salud", x = "Vacuna", y = "Número de Pacientes") +
+  theme_minimal()
+)
+
+```
+
+------------------------------------------------------------------------
+
+#### Contacto con casos positivos: ¿Cuál es la proporción de personas que han estado en contacto con casos positivos y cómo afecta esto a su propio estado?
+
+```{r}
+# 1. Proporción de personas que han estado en contacto con casos positivos
+contacto_proporcion <- Dset_cleam %>%
+  group_by(`Contacto con casos positivos`) %>%
+  summarise(Conteo = n()) %>%
+  mutate(Proporcion = Conteo / sum(Conteo) * 100)
+```
+
+```{r}
+# 2. Relación entre contacto con casos positivos y estado de salud
+contacto_estado <- Dset_cleam %>%
+  group_by(`Contacto con casos positivos`, Estado) %>%
+  summarise(Conteo = n()) %>%
+  arrange(desc(`Contacto con casos positivos`))
+
+```
+
+```{r}
+# Visualizar la relación entre contacto y estado de salud
+print(
+ggplot(contacto_estado, aes(x = `Contacto con casos positivos`, y = Conteo, fill = Estado)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Efecto del Contacto con Casos Positivos en el Estado de Salud", 
+       x = "Contacto con Casos Positivos", y = "Número de Pacientes") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+#### Viajes recientes: ¿Cuántas personas han viajado recientemente y cómo se relaciona esto con la propagación de la enfermedad?
+
+```{r}
+# 1. Proporción de personas que han viajado recientemente
+viajes_proporcion <- Dset_cleam %>%
+  group_by(`Viajes recientes`) %>%
+  summarise(Conteo = n()) %>%
+  mutate(Proporcion = Conteo / sum(Conteo) * 100)
+```
+
+```{r}
+# Crear la gráfica de torta interactiva con Plotly
+print(
+fig <- plot_ly(viajes_proporcion, 
+               labels = ~`Viajes recientes`, 
+               values = ~Conteo, 
+               type = 'pie',  # Definir tipo de gráfico como 'pie'
+               textinfo = 'label+percent',  # Mostrar etiquetas y porcentaje
+               hoverinfo = 'text',  # Información que aparece al pasar el cursor
+               text = ~paste("Viajes recientes: ", `Viajes recientes`, 
+                             "<br>Número de personas: ", Conteo, 
+                             "<br>Porcentaje: ", round(Proporcion, 1), "%"),
+               marker = list(line = list(color = '#FFFFFF', width = 2))) %>%
+  
+  layout(title = 'Proporción de Personas con Viajes Recientes',
+         showlegend = TRUE)  # Mostrar leyenda
+)
+# Mostrar la gráfica
+fig
+```
+
+------------------------------------------------------------------------
+
+#### Resultado de la prueba: ¿Cuál es la proporción de resultados positivos y negativos en las pruebas y cómo se relaciona esto con otros factores?
+
+```{r}
+# 1. Proporción de resultados de la prueba
+resultado_proporcion <- Dset_cleam %>%
+  group_by(`Resultado de la prueba`) %>%
+  summarise(Conteo = n()) %>%
+  mutate(Proporcion = Conteo / sum(Conteo) * 100)
+
+```
+
+```{r}
+library(plotly)
+
+# Crear la gráfica de torta
+fig <- plot_ly(resultado_proporcion, 
+                labels = ~`Resultado de la prueba`, 
+                values = ~Conteo, 
+                type = 'pie',  
+                textinfo = 'label+percent',  
+                hoverinfo = 'text',  
+                text = ~paste("Resultado: ", `Resultado de la prueba`, 
+                              "<br>Número de pruebas: ", Conteo, 
+                              "<br>Proporción: ", round(Proporcion, 1), "%"),
+                marker = list(line = list(color = '#FFFFFF', width = 2))) %>%
+  layout(title = 'Proporción de Resultados de la Prueba',
+         showlegend = TRUE)  
+
+# Mostrar la gráfica
+fig
+
+```
+
+------------------------------------------------------------------------
+
+#### Fecha de recuperación:¿Cómo se distribuyen las fechas de recuperación y hay algún patrón en la duración de la enfermedad?
+
+```{r}
+# Calcular la duración de la enfermedad (en días)
+Dset_cleam <- Dset_cleam %>%
+  mutate(Duracion_enfermedad = as.numeric(difftime(`Fecha de recuperación`, `Fecha de diagnóstico`, units = "days")))
+```
+
+```{r}
+# Histograma de la duración de la enfermedad
+print(
+ggplot(Dset_cleam, aes(x = Duracion_enfermedad)) +
+  geom_histogram(binwidth = 3, fill = "lightblue", color = "black") +
+  labs(title = "Distribución de la Duración de la Enfermedad", 
+       x = "Duración de la Enfermedad (días)", y = "Número de Pacientes") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Relación entre la edad y la duración de la enfermedad
+print(
+ggplot(Dset_cleam, aes(x = Edad, y = Duracion_enfermedad)) +
+  geom_point(color = "purple", size = 3) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Relación entre la Edad y la Duración de la Enfermedad", 
+       x = "Edad", y = "Duración de la Enfermedad (días)") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+#### Hospitalizado: ¿Qué proporción de personas en el dataset han sido hospitalizadas y cómo afecta esto a la gravedad y duración de la enfermedad?
+
+```{r}
+# Proporción de personas hospitalizadas
+hospitalizados_proporcion <- Dset_cleam %>%
+  group_by(Hospitalizado) %>%
+  summarise(Conteo = n()) %>%
+  mutate(Proporcion = Conteo / sum(Conteo) * 100)
+```
+
+```{r}
+# Relación entre hospitalización y estado de salud
+hospitalizacion_estado <- Dset_cleam %>%
+  group_by(Hospitalizado, Estado) %>%
+  summarise(Conteo = n()) %>%
+  arrange(desc(Hospitalizado))
+```
+
+```{r}
+# Visualización de la relación entre hospitalización y estado de salud
+print(
+ggplot(hospitalizacion_estado, aes(x = Hospitalizado, y = Conteo, fill = Estado)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Relación entre la Hospitalización y el Estado de Salud", 
+       x = "Hospitalizado", y = "Número de Pacientes") +
+  theme_minimal()
+)
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Relación entre hospitalización y duración de la enfermedad
+print(
+ggplot(Dset_cleam, aes(x = Hospitalizado, y = Duracion_enfermedad, fill = Hospitalizado)) +
+  geom_boxplot(color = "black") +
+  labs(title = "Duración de la Enfermedad en Pacientes Hospitalizados vs No Hospitalizados", 
+       x = "Hospitalizado", y = "Duración de la Enfermedad (días)") +
+  theme_minimal()
+)
+
+```
+
+------------------------------------------------------------------------
+
+#### Comorbilidades:¿Cuáles son las comorbilidades más comunes entre los pacientes y cómo se relacionan estas condiciones preexistentes con el curso de la enfermedad y el resultado final?
+
+```{r}
+# Contar las comorbilidades más comunes
+comorbilidades_comunes <- Dset_cleam %>%
+  group_by(Comorbilidades) %>%
+  summarise(Conteo = n()) %>%
+  arrange(desc(Conteo))
+
+```
+
+```{r}
+# Relación entre comorbilidades y el estado de salud
+comorbilidades_estado <- Dset_cleam %>%
+  group_by(Comorbilidades, Estado) %>%
+  summarise(Conteo = n()) %>%
+  arrange(desc(Comorbilidades))
+```
+
+```{r}
+# Visualizar la relación entre comorbilidades y el estado de salud
+print(
+ggplot(comorbilidades_estado, aes(x = Comorbilidades, y = Conteo, fill = Estado)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Relación entre Comorbilidades y Estado de Salud", 
+       x = "Comorbilidades", y = "Número de Pacientes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+)
+```
