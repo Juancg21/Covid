@@ -1,0 +1,18 @@
+     /*     /* Aplicar estilos solo a la primera diapositiva */
+          .reveal .slides section:first-of-type {
+            position: relative;
+          }
+          
+          /* Logo en la parte inferior */
+          .reveal .slides section:first-of-type::before {
+            content: '';
+            background-image: url("logo_mag.png");  /* Cambia esto a la ruta correcta de tu logo */
+            background-size: 50% auto;  /* Ajusta el tamaño del logo */
+            background-repeat: no-repeat;
+            position: absolute;
+            bottom: -130px;  /* Ajusta la distancia desde la parte inferior */
+            left: 50%;  /* Centra el logo horizontalmente */
+            transform: translateX(0%);  /* Centra el logo correctamente */
+            width: 100px;  /* Ajusta el ancho del logo */
+            height: 70px;  /* Ajusta la altura del logo */
+  } */

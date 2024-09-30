@@ -1,0 +1,25 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+    font-family: 'Roboto', sans-serif; /* Aplica la fuente */
+}
+
+body {
+    background-color: #caf0f8; /* Color de fondo deseado */
+    font-family: Arial, sans-serif;
+}
+
+h1, h2, h3 {
+    color: #333;
+}
+
+.table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.table th, .table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
